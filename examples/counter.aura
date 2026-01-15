@@ -1,0 +1,45 @@
+component Counter:
+  state count = 0
+  state step = 1
+  
+  computed isEven = count % 2 == 0
+  computed display = "Count: " + count
+  
+  on increment => count = count + step
+  on decrement => count = count - step
+  on reset => count = 0
+  
+  animate increment:
+    scale: 1.1
+    duration: 200
+    easing: ease-out
+  
+  animate decrement:
+    scale: 0.9
+    duration: 200
+    easing: ease-out
+  
+  role "application"
+  label "Counter application"
+  
+  main class="counter-app":
+    h1: "Counter Example"
+    
+    div class="display":
+      p class=(isEven ? "even" : "odd"): display
+      p: "Status: {isEven ? 'Even' : 'Odd'}"
+    
+    div class="controls":
+      button onclick=decrement aria-label="Decrease count": "-"
+      button onclick=reset aria-label="Reset count": "Reset"
+      button onclick=increment aria-label="Increase count": "+"
+    
+    div class="settings":
+      label for="step-input": "Step size:"
+      input 
+        id="step-input"
+        type="number" 
+        value=step 
+        oninput=(e) => step = parseInt(e.target.value)
+        min="1"
+        max="10"

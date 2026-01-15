@@ -1,0 +1,137 @@
+component TodoList:
+  state todos = []
+  state input = ""
+  state filter = "all"
+  state editingId = null
+  state editText = ""
+  
+  computed filteredTodos = todos.filter(todo =>
+    filter == "all" || 
+    (filter == "active" && !todo.completed) ||
+    (filter == "completed" && todo.completed)
+  )
+  
+  computed activeCount = todos.filter(t => !t.completed).length
+  computed completedCount = todos.filter(t => t.completed).length
+  
+  on addTodo =>
+    if input.trim():
+      todos = [...todos, {
+        id: Date.now(),
+        text: input.trim(),
+        completed: false,
+        createdAt: Date.now()
+      }]
+      input = ""
+  
+  on toggleTodo(id) =>
+    todos = todos.map(t => 
+      t.id == id ? { ...t, completed: !t.completed } : t
+    )
+  
+  on deleteTodo(id) =>
+    todos = todos.filter(t => t.id != id)
+  
+  on startEdit(id, text) =>
+    editingId = id
+    editText = text
+  
+  on saveEdit =>
+    todos = todos.map(t =>
+      t.id == editingId ? { ...t, text: editText } : t
+    )
+    editingId = null
+    editText = ""
+  
+  on cancelEdit =>
+    editingId = null
+    editText = ""
+  
+  on clearCompleted =>
+    todos = todos.filter(t => !t.completed)
+  
+  animate addTodo:
+    opacity: 0 -> 1
+    translateY: -20 -> 0
+    duration: 300
+    easing: spring
+  
+  animate deleteTodo:
+    opacity: 1 -> 0
+    scale: 1 -> 0.8
+    duration: 200
+  
+  role "application"
+  label "Todo list application"
+  
+  main class="todo-app":
+    header:
+      h1: "todos"
+      
+      form onsubmit=addTodo class="add-todo":
+        input 
+          value=input
+          oninput=(e) => input = e.target.value
+          placeholder="What needs to be done?"
+          aria-label="New todo input"
+          autofocus=true
+        
+        button type="submit" aria-label="Add todo": "Add"
+    
+    section class="filters" role="tablist":
+      button 
+        onclick=() => filter = "all"
+        class=(filter == "all" ? "active" : "")
+        role="tab"
+        aria-selected=(filter == "all"): "All ({todos.length})"
+      
+      button 
+        onclick=() => filter = "active"
+        class=(filter == "active" ? "active" : "")
+        role="tab"
+        aria-selected=(filter == "active"): "Active ({activeCount})"
+      
+      button 
+        onclick=() => filter = "completed"
+        class=(filter == "completed" ? "active" : "")
+        role="tab"
+        aria-selected=(filter == "completed"): "Completed ({completedCount})"
+    
+    when filteredTodos.length > 0:
+      ul class="todo-list" role="list":
+        each todo in filteredTodos:
+          li key=todo.id class=(todo.completed ? "completed" : ""):
+            when editingId == todo.id:
+              form onsubmit=saveEdit class="edit-form":
+                input 
+                  value=editText
+                  oninput=(e) => editText = e.target.value
+                  aria-label="Edit todo text"
+                
+                button type="submit": "Save"
+                button type="button" onclick=cancelEdit: "Cancel"
+            
+            when editingId != todo.id:
+              div class="todo-item":
+                input 
+                  type="checkbox"
+                  checked=todo.completed
+                  onchange=() => toggleTodo(todo.id)
+                  aria-label="Mark as complete"
+                
+                span 
+                  class="todo-text"
+                  ondblclick=() => startEdit(todo.id, todo.text): todo.text
+                
+                button 
+                  onclick=() => deleteTodo(todo.id)
+                  class="delete-btn"
+                  aria-label="Delete todo": "×"
+    
+    when filteredTodos.length == 0:
+      p class="empty-state": "No todos to show"
+    
+    when completedCount > 0:
+      footer class="todo-footer":
+        p: "{activeCount} item{activeCount != 1 ? 's' : ''} left"
+        button onclick=clearCompleted: "Clear completed"

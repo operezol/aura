@@ -1,0 +1,192 @@
+component Dashboard:
+  state user = { name: "Alice", role: "admin" }
+  state stats = { views: 1234, users: 567, revenue: 89012 }
+  state notifications = []
+  state selectedTab = "overview"
+  state isMenuOpen = false
+  state searchQuery = ""
+  
+  computed filteredNotifications = notifications.filter(n =>
+    n.title.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+  
+  computed formattedRevenue = "$" + stats.revenue.toLocaleString()
+  
+  on toggleMenu => isMenuOpen = !isMenuOpen
+  on selectTab(tab) => selectedTab = tab
+  on dismissNotification(id) =>
+    notifications = notifications.filter(n => n.id != id)
+  
+  on logout =>
+    user = null
+    navigate("/login")
+  
+  effect () =>
+    const interval = setInterval(fetchStats, 30000)
+    return () => clearInterval(interval)
+  
+  effect (searchQuery) =>
+    if searchQuery.length > 2:
+      searchNotifications(searchQuery)
+  
+  animate toggleMenu:
+    translateX: isMenuOpen ? 0 : -300
+    duration: 300
+    easing: ease-out
+  
+  animate selectTab:
+    opacity: 0 -> 1
+    translateY: 10 -> 0
+    duration: 200
+  
+  role "application"
+  label "Dashboard application"
+  
+  div class="dashboard":
+    header class="dashboard-header":
+      div class="header-left":
+        button 
+          onclick=toggleMenu
+          class="menu-toggle"
+          aria-label="Toggle menu"
+          aria-expanded=(isMenuOpen ? "true" : "false"): "☰"
+        
+        h1: "Dashboard"
+      
+      div class="header-right":
+        div class="search-box":
+          input 
+            type="search"
+            value=searchQuery
+            oninput=(e) => searchQuery = e.target.value
+            placeholder="Search..."
+            aria-label="Search notifications"
+        
+        div class="user-menu":
+          span: "Welcome, {user.name}"
+          button onclick=logout: "Logout"
+    
+    div class="dashboard-layout":
+      aside class=(isMenuOpen ? "sidebar open" : "sidebar"):
+        nav role="navigation" aria-label="Main navigation":
+          ul:
+            li:
+              button 
+                onclick=() => selectTab("overview")
+                class=(selectedTab == "overview" ? "active" : "")
+                aria-current=(selectedTab == "overview" ? "page" : null): "Overview"
+            
+            li:
+              button 
+                onclick=() => selectTab("analytics")
+                class=(selectedTab == "analytics" ? "active" : "")
+                aria-current=(selectedTab == "analytics" ? "page" : null): "Analytics"
+            
+            li:
+              button 
+                onclick=() => selectTab("users")
+                class=(selectedTab == "users" ? "active" : "")
+                aria-current=(selectedTab == "users" ? "page" : null): "Users"
+            
+            li:
+              button 
+                onclick=() => selectTab("settings")
+                class=(selectedTab == "settings" ? "active" : "")
+                aria-current=(selectedTab == "settings" ? "page" : null): "Settings"
+      
+      main class="dashboard-content":
+        when selectedTab == "overview":
+          section aria-labelledby="overview-title":
+            h2 id="overview-title": "Overview"
+            
+            div class="stats-grid":
+              article class="stat-card":
+                h3: "Total Views"
+                p class="stat-value": stats.views.toLocaleString()
+                span class="stat-change positive": "+12.5%"
+              
+              article class="stat-card":
+                h3: "Active Users"
+                p class="stat-value": stats.users.toLocaleString()
+                span class="stat-change positive": "+8.3%"
+              
+              article class="stat-card":
+                h3: "Revenue"
+                p class="stat-value": formattedRevenue
+                span class="stat-change positive": "+15.7%"
+            
+            section class="recent-activity":
+              h3: "Recent Activity"
+              
+              when notifications.length > 0:
+                ul role="list":
+                  each notification in filteredNotifications:
+                    li key=notification.id class="notification-item":
+                      div class="notification-content":
+                        strong: notification.title
+                        p: notification.message
+                        time datetime=notification.timestamp:
+                          notification.timeAgo
+                      
+                      button 
+                        onclick=() => dismissNotification(notification.id)
+                        aria-label="Dismiss notification": "×"
+              
+              when notifications.length == 0:
+                p class="empty-state": "No notifications"
+        
+        when selectedTab == "analytics":
+          section aria-labelledby="analytics-title":
+            h2 id="analytics-title": "Analytics"
+            
+            div class="analytics-content":
+              p: "Analytics dashboard coming soon..."
+        
+        when selectedTab == "users":
+          section aria-labelledby="users-title":
+            h2 id="users-title": "User Management"
+            
+            div class="users-content":
+              p: "User management interface coming soon..."
+        
+        when selectedTab == "settings":
+          section aria-labelledby="settings-title":
+            h2 id="settings-title": "Settings"
+            
+            div class="settings-content":
+              form:
+                fieldset:
+                  legend: "Profile Settings"
+                  
+                  div class="form-group":
+                    label for="display-name": "Display Name"
+                    input 
+                      id="display-name"
+                      type="text"
+                      value=user.name
+                  
+                  div class="form-group":
+                    label for="email": "Email"
+                    input 
+                      id="email"
+                      type="email"
+                      value=user.email
+                
+                fieldset:
+                  legend: "Preferences"
+                  
+                  div class="form-group":
+                    input 
+                      id="notifications-enabled"
+                      type="checkbox"
+                      checked=user.notificationsEnabled
+                    label for="notifications-enabled": "Enable notifications"
+                  
+                  div class="form-group":
+                    input 
+                      id="dark-mode"
+                      type="checkbox"
+                      checked=user.darkMode
+                    label for="dark-mode": "Dark mode"
+                
+                button type="submit": "Save Changes"

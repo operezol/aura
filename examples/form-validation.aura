@@ -1,0 +1,139 @@
+component SignupForm:
+  state formData = {
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  }
+  
+  state errors = {}
+  state touched = {}
+  state isSubmitting = false
+  state submitSuccess = false
+  
+  computed isUsernameValid = formData.username.length >= 3
+  computed isEmailValid = formData.email.includes("@") && formData.email.includes(".")
+  computed isPasswordValid = formData.password.length >= 8
+  computed isPasswordMatch = formData.password == formData.confirmPassword
+  
+  computed isFormValid = 
+    isUsernameValid && 
+    isEmailValid && 
+    isPasswordValid && 
+    isPasswordMatch
+  
+  on updateField(field, value) =>
+    formData = { ...formData, [field]: value }
+  
+  on markTouched(field) =>
+    touched = { ...touched, [field]: true }
+  
+  on validateField(field) =>
+    errors = { ...errors }
+    
+    if field == "username" && !isUsernameValid && touched.username:
+      errors.username = "Username must be at least 3 characters"
+    else:
+      delete errors.username
+    
+    if field == "email" && !isEmailValid && touched.email:
+      errors.email = "Please enter a valid email"
+    else:
+      delete errors.email
+    
+    if field == "password" && !isPasswordValid && touched.password:
+      errors.password = "Password must be at least 8 characters"
+    else:
+      delete errors.password
+    
+    if field == "confirmPassword" && !isPasswordMatch && touched.confirmPassword:
+      errors.confirmPassword = "Passwords do not match"
+    else:
+      delete errors.confirmPassword
+  
+  on submit =>
+    if isFormValid:
+      isSubmitting = true
+      submitForm(formData)
+      isSubmitting = false
+      submitSuccess = true
+  
+  effect (formData.username) => validateField("username")
+  effect (formData.email) => validateField("email")
+  effect (formData.password) => validateField("password")
+  effect (formData.confirmPassword) => validateField("confirmPassword")
+  
+  role "form"
+  label "Sign up form"
+  
+  main class="signup-form":
+    h1: "Create Account"
+    
+    when submitSuccess:
+      div class="success-message" role="alert":
+        p: "Account created successfully!"
+    
+    when !submitSuccess:
+      form onsubmit=submit:
+        div class="form-group":
+          label for="username": "Username"
+          input 
+            id="username"
+            type="text"
+            value=formData.username
+            oninput=(e) => updateField("username", e.target.value)
+            onblur=() => markTouched("username")
+            aria-invalid=(errors.username ? "true" : "false")
+            aria-describedby=(errors.username ? "username-error" : null)
+          
+          when errors.username:
+            p id="username-error" class="error" role="alert": errors.username
+        
+        div class="form-group":
+          label for="email": "Email"
+          input 
+            id="email"
+            type="email"
+            value=formData.email
+            oninput=(e) => updateField("email", e.target.value)
+            onblur=() => markTouched("email")
+            aria-invalid=(errors.email ? "true" : "false")
+            aria-describedby=(errors.email ? "email-error" : null)
+          
+          when errors.email:
+            p id="email-error" class="error" role="alert": errors.email
+        
+        div class="form-group":
+          label for="password": "Password"
+          input 
+            id="password"
+            type="password"
+            value=formData.password
+            oninput=(e) => updateField("password", e.target.value)
+            onblur=() => markTouched("password")
+            aria-invalid=(errors.password ? "true" : "false")
+            aria-describedby=(errors.password ? "password-error" : null)
+          
+          when errors.password:
+            p id="password-error" class="error" role="alert": errors.password
+        
+        div class="form-group":
+          label for="confirm-password": "Confirm Password"
+          input 
+            id="confirm-password"
+            type="password"
+            value=formData.confirmPassword
+            oninput=(e) => updateField("confirmPassword", e.target.value)
+            onblur=() => markTouched("confirmPassword")
+            aria-invalid=(errors.confirmPassword ? "true" : "false")
+            aria-describedby=(errors.confirmPassword ? "confirm-password-error" : null)
+          
+          when errors.confirmPassword:
+            p id="confirm-password-error" class="error" role="alert": errors.confirmPassword
+        
+        button 
+          type="submit" 
+          disabled=(!isFormValid || isSubmitting)
+          aria-busy=(isSubmitting ? "true" : "false"):
+            when isSubmitting: "Submitting..."
+            when !isSubmitting: "Sign Up"
