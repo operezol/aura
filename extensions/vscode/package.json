@@ -1,0 +1,35 @@
+{
+    "name": "vscode-aura",
+    "displayName": "Aura Language Support",
+    "description": "Language support for Aura - The declarative UI language",
+    "version": "0.1.0",
+    "publisher": "aura-lang",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "aura",
+                "aliases": [
+                    "Aura",
+                    "aura"
+                ],
+                "extensions": [
+                    ".aura"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "aura",
+                "scopeName": "source.aura",
+                "path": "./syntaxes/aura.tmLanguage.json"
+            }
+        ]
+    }
+}

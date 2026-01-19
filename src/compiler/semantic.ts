@@ -107,12 +107,12 @@ export class SemanticAnalyzer {
 
   private hasInteractiveElements(elements: AST.ElementNode[]): boolean {
     const interactiveTags = ['button', 'input', 'select', 'textarea', 'a'];
-    
+
     for (const element of elements) {
       if (interactiveTags.includes(element.tag)) {
         return true;
       }
-      
+
       if (element.children.length > 0) {
         const childElements = element.children.filter(
           (child): child is AST.ElementNode => child.type === AST.NodeType.ELEMENT
@@ -122,19 +122,48 @@ export class SemanticAnalyzer {
         }
       }
     }
-    
+
     return false;
   }
 
   private analyzeElement(element: AST.ElementNode): void {
     if (element.tag === 'button' && !element.ariaLabel) {
       const hasTextContent = element.children.some(
-        child => child.type === AST.NodeType.TEXT
+        child => child.type === AST.NodeType.TEXT && child.content.trim().length > 0
       );
-      
+
       if (!hasTextContent) {
         this.warnings.push({
-          message: 'Button element without text content or aria-label',
+          message: 'Button element must have text content or aria-label',
+          line: element.line,
+          column: element.column
+        });
+      }
+    }
+
+    // Strict audit: Check for bad alt text
+    if (element.tag === 'img') {
+      const altAttr = element.attributes.find(attr => attr.name === 'alt');
+      if (altAttr) {
+        if (altAttr.value.type === AST.NodeType.LITERAL && typeof altAttr.value.value === 'string') {
+          const altText = altAttr.value.value.toLowerCase();
+          if (['image', 'picture', 'photo'].some(bad => altText.includes(bad))) {
+            this.warnings.push({
+              message: `Avoid using "${altText}" in alt text. Describe the image content instead.`,
+              line: element.line,
+              column: element.column
+            });
+          }
+        }
+      }
+    }
+
+    // Strict audit: Check for positive tabindex
+    const tabIndexAttr = element.attributes.find(attr => attr.name === 'tabindex');
+    if (tabIndexAttr && tabIndexAttr.value.type === AST.NodeType.LITERAL && typeof tabIndexAttr.value.value === 'number') {
+      if (tabIndexAttr.value.value > 0) {
+        this.errors.push({
+          message: 'Avoid using positive tabindex. Use 0 or -1.',
           line: element.line,
           column: element.column
         });

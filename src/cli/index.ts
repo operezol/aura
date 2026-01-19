@@ -6,6 +6,7 @@ import { Compiler } from '../compiler/index.js';
 import { DevServer } from './dev-server.js';
 import { Linter } from './linter.js';
 import { Formatter } from './formatter.js';
+import { Auditor } from './audit.js';
 
 const COMMANDS = {
   compile: 'Compile Aura files to JavaScript',
@@ -13,6 +14,7 @@ const COMMANDS = {
   build: 'Build for production',
   lint: 'Lint Aura files',
   format: 'Format Aura files',
+  audit: 'Run accessibility and performance audit',
   init: 'Initialize a new Aura project',
   help: 'Show help message'
 };
@@ -61,6 +63,9 @@ class CLI {
       case 'format':
         await this.format();
         break;
+      case 'audit':
+        await this.audit();
+        break;
       case 'init':
         await this.init();
         break;
@@ -73,7 +78,7 @@ class CLI {
 
   private async compile(): Promise<void> {
     const input = this.options.input || this.args[1];
-    
+
     if (!input) {
       console.error('Error: Input file required');
       console.log('Usage: aura compile <input> [options]');
@@ -214,7 +219,7 @@ class CLI {
 
       if (result.errors.length > 0 || result.warnings.length > 0) {
         console.log(`${file}:`);
-        
+
         result.errors.forEach(error => {
           console.error(`  ${error.line}:${error.column} - error: ${error.message}`);
           errorCount++;
@@ -265,6 +270,17 @@ class CLI {
     }
   }
 
+  private async audit(): Promise<void> {
+    const input = this.options.input || 'src';
+    const files = this.findAuraFiles(input);
+    const auditor = new Auditor();
+
+    const success = await auditor.audit(files);
+    if (!success) {
+      process.exit(1);
+    }
+  }
+
   private async init(): Promise<void> {
     const projectName = this.args[1] || 'my-aura-app';
     const projectPath = path.join(process.cwd(), projectName);
@@ -291,9 +307,6 @@ class CLI {
         format: 'aura format --fix'
       },
       dependencies: {
-        '@aura/runtime': '^0.1.0'
-      },
-      devDependencies: {
         'aura-lang': '^0.1.0'
       }
     };
@@ -312,15 +325,38 @@ class CLI {
   animate click:
     scale: 1.1
   
-  role "application"
-  label "Counter application"
-  
-  button onclick=handleClick: "Count: {count}"
+  style:
+    .container:
+      padding: "20px"
+      text-align: "center"
+      font-family: "sans-serif"
+    
+    button:
+      padding: "10px 20px"
+      font-size: "16px"
+      cursor: "pointer"
+
+  div class="container":
+    h1: "Welcome to Aura"
+    p: "Count: {count}"
+    button onclick=click: "Increment"
 `;
 
     fs.writeFileSync(
       path.join(projectPath, 'src', 'Counter.aura'),
       exampleComponent,
+      'utf-8'
+    );
+
+    const mainJs = `import { mount } from 'aura-lang';
+import { Counter } from './Counter.js';
+
+mount(Counter, document.getElementById('app'));
+`;
+
+    fs.writeFileSync(
+      path.join(projectPath, 'src', 'main.js'),
+      mainJs,
       'utf-8'
     );
 
@@ -397,7 +433,7 @@ class CLI {
     console.log('Aura - A declarative UI language\n');
     console.log('Usage: aura <command> [options]\n');
     console.log('Commands:');
-    
+
     for (const [command, description] of Object.entries(COMMANDS)) {
       console.log(`  ${command.padEnd(12)} ${description}`);
     }

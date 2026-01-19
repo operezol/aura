@@ -1,0 +1,36 @@
+space Theme:
+  state dark = false
+  state accent = "#3498db"
+  
+  computed bg = dark ? "#111" : "#fff"
+  computed color = dark ? "#eee" : "#222"
+
+style:
+  .container:
+    padding: "20px"
+    font-family: "sans-serif"
+    border-radius: "8px"
+  
+  .btn:
+    padding: "10px 20px"
+    cursor: "pointer"
+
+component MyApp:
+  state active = true
+  
+  on toggle => Theme.dark = !Theme.dark
+  
+  style:
+    .local-card:
+      box-shadow: "0 2px 5px rgba(0,0,0,0.1)"
+
+  div class="container" style="background: ${Theme.bg}; color: ${Theme.color}":
+    h1: "Aura Features Demo"
+    
+    div class="local-card":
+      p: "Current Theme: {Theme.dark ? 'Dark' : 'Light'}"
+      
+      button class="btn" onclick=toggle role="switch" aria-label="Toggle Theme":
+        "Toggle Mode"
+        
+    img src="logo.png" alt="Aura Logo"

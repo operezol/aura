@@ -7,13 +7,29 @@
   "bin": {
     "aura": "dist/cli/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/runtime/index.js",
+    "./runtime": "./dist/runtime/index.js",
+    "./animation": "./dist/runtime/animation.js",
+    "./store": "./dist/runtime/store.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "node --test",
-    "cli": "node dist/cli/index.js"
+    "cli": "node dist/cli/index.js",
+    "prepare": "npm run build"
   },
-  "keywords": ["ui", "language", "compiler", "reactive", "animation"],
+  "keywords": [
+    "ui",
+    "language",
+    "compiler",
+    "reactive",
+    "animation"
+  ],
   "author": "Oriol",
   "license": "MIT",
   "devDependencies": {

@@ -1,6 +1,8 @@
 export enum NodeType {
   PROGRAM = 'PROGRAM',
   COMPONENT = 'COMPONENT',
+  SPACE = 'SPACE',
+  STYLE = 'STYLE',
   STATE_DECLARATION = 'STATE_DECLARATION',
   COMPUTED_DECLARATION = 'COMPUTED_DECLARATION',
   EFFECT_DECLARATION = 'EFFECT_DECLARATION',
@@ -12,7 +14,7 @@ export enum NodeType {
   LOOP = 'LOOP',
   SLOT = 'SLOT',
   EMIT = 'EMIT',
-  
+
   IDENTIFIER = 'IDENTIFIER',
   LITERAL = 'LITERAL',
   BINARY_EXPRESSION = 'BINARY_EXPRESSION',
@@ -22,7 +24,8 @@ export enum NodeType {
   ARRAY_EXPRESSION = 'ARRAY_EXPRESSION',
   OBJECT_EXPRESSION = 'OBJECT_EXPRESSION',
   ARROW_FUNCTION = 'ARROW_FUNCTION',
-  BLOCK = 'BLOCK'
+  BLOCK = 'BLOCK',
+  CONDITIONAL_EXPRESSION = 'CONDITIONAL_EXPRESSION'
 }
 
 export interface ASTNode {
@@ -34,6 +37,27 @@ export interface ASTNode {
 export interface Program extends ASTNode {
   type: NodeType.PROGRAM;
   components: ComponentNode[];
+  spaces: SpaceNode[];
+  styles: StyleNode[];
+}
+
+export interface StyleNode extends ASTNode {
+  type: NodeType.STYLE;
+  rules: StyleRule[];
+}
+
+export interface StyleRule {
+  selector: string;
+  properties: Record<string, string | Expression>;
+}
+
+export interface SpaceNode extends ASTNode {
+  type: NodeType.SPACE;
+  name: string;
+  states: StateDeclaration[];
+  computed: ComputedDeclaration[];
+  effects: EffectDeclaration[];
+  handlers: EventHandler[];
 }
 
 export interface ComponentNode extends ASTNode {
@@ -45,6 +69,7 @@ export interface ComponentNode extends ASTNode {
   effects: EffectDeclaration[];
   handlers: EventHandler[];
   animations: AnimationDeclaration[];
+  styles: StyleNode[];
   body: ElementNode[];
   accessibility: AccessibilityInfo;
 }
@@ -152,7 +177,7 @@ export interface AccessibilityInfo {
   focusManagement?: 'auto' | 'manual';
 }
 
-export type Expression = 
+export type Expression =
   | Identifier
   | Literal
   | BinaryExpression
@@ -161,7 +186,9 @@ export type Expression =
   | MemberExpression
   | ArrayExpression
   | ObjectExpression
-  | ArrowFunction;
+  | ObjectExpression
+  | ArrowFunction
+  | ConditionalExpression;
 
 export interface Identifier extends ASTNode {
   type: NodeType.IDENTIFIER;
@@ -226,4 +253,11 @@ export type Statement = Expression | StateDeclaration | EmitNode;
 export interface Block extends ASTNode {
   type: NodeType.BLOCK;
   statements: Statement[];
+}
+
+export interface ConditionalExpression extends ASTNode {
+  type: NodeType.CONDITIONAL_EXPRESSION;
+  test: Expression;
+  consequent: Expression;
+  alternate: Expression;
 }

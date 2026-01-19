@@ -12,12 +12,14 @@ export enum TokenType {
   ROLE = 'ROLE',
   LABEL = 'LABEL',
   DESCRIBE = 'DESCRIBE',
-  
+  SPACE = 'SPACE',
+  STYLE = 'STYLE',
+
   IDENTIFIER = 'IDENTIFIER',
   STRING = 'STRING',
   NUMBER = 'NUMBER',
   BOOLEAN = 'BOOLEAN',
-  
+
   LBRACE = 'LBRACE',
   RBRACE = 'RBRACE',
   LPAREN = 'LPAREN',
@@ -43,7 +45,8 @@ export enum TokenType {
   NE = 'NE',
   AND = 'AND',
   OR = 'OR',
-  
+  QUESTION = 'QUESTION',
+
   NEWLINE = 'NEWLINE',
   INDENT = 'INDENT',
   DEDENT = 'DEDENT',
@@ -78,6 +81,8 @@ const KEYWORDS: Record<string, TokenType> = {
   'role': TokenType.ROLE,
   'label': TokenType.LABEL,
   'describe': TokenType.DESCRIBE,
+  'space': TokenType.SPACE,
+  'style': TokenType.STYLE,
   'true': TokenType.BOOLEAN,
   'false': TokenType.BOOLEAN
 };
@@ -99,40 +104,40 @@ export class Lexer {
   tokenize(): { tokens: Token[]; errors: LexerError[] } {
     while (this.position < this.input.length) {
       this.skipWhitespaceExceptNewline();
-      
+
       if (this.position >= this.input.length) break;
-      
+
       const char = this.input[this.position];
-      
+
       if (char === '\n') {
         this.handleNewline();
         continue;
       }
-      
+
       if (char === '#') {
         this.skipComment();
         continue;
       }
-      
+
       if (this.isLetter(char) || char === '_') {
         this.readIdentifierOrKeyword();
         continue;
       }
-      
+
       if (this.isDigit(char)) {
         this.readNumber();
         continue;
       }
-      
+
       if (char === '"' || char === "'") {
         this.readString(char);
         continue;
       }
-      
+
       if (this.readOperator()) {
         continue;
       }
-      
+
       this.errors.push({
         message: `Illegal character: ${char}`,
         line: this.line,
@@ -140,12 +145,12 @@ export class Lexer {
       });
       this.advance();
     }
-    
+
     while (this.indentStack.length > 1) {
       this.indentStack.pop();
       this.addToken(TokenType.DEDENT, '');
     }
-    
+
     this.addToken(TokenType.EOF, '');
     return { tokens: this.tokens, errors: this.errors };
   }
@@ -155,10 +160,10 @@ export class Lexer {
     this.advance();
     this.line++;
     this.column = 1;
-    
+
     const indentLevel = this.measureIndent();
     const currentIndent = this.indentStack[this.indentStack.length - 1];
-    
+
     if (indentLevel > currentIndent) {
       this.indentStack.push(indentLevel);
       this.addToken(TokenType.INDENT, '');
@@ -167,7 +172,7 @@ export class Lexer {
         this.indentStack.pop();
         this.addToken(TokenType.DEDENT, '');
       }
-      
+
       if (this.indentStack[this.indentStack.length - 1] !== indentLevel) {
         this.errors.push({
           message: 'Indentation error: inconsistent indentation',
@@ -217,14 +222,14 @@ export class Lexer {
   private readIdentifierOrKeyword(): void {
     const start = this.position;
     const startColumn = this.column;
-    
+
     while (this.position < this.input.length && (this.isAlphanumeric(this.input[this.position]) || this.input[this.position] === '_')) {
       this.advance();
     }
-    
+
     const value = this.input.substring(start, this.position);
     const type = KEYWORDS[value] || TokenType.IDENTIFIER;
-    
+
     this.tokens.push({
       type,
       value,
@@ -236,18 +241,18 @@ export class Lexer {
   private readNumber(): void {
     const start = this.position;
     const startColumn = this.column;
-    
+
     while (this.position < this.input.length && this.isDigit(this.input[this.position])) {
       this.advance();
     }
-    
+
     if (this.position < this.input.length && this.input[this.position] === '.') {
       this.advance();
       while (this.position < this.input.length && this.isDigit(this.input[this.position])) {
         this.advance();
       }
     }
-    
+
     const value = this.input.substring(start, this.position);
     this.tokens.push({
       type: TokenType.NUMBER,
@@ -260,13 +265,13 @@ export class Lexer {
   private readString(quote: string): void {
     const startColumn = this.column;
     this.advance();
-    
+
     let value = '';
     let escaped = false;
-    
+
     while (this.position < this.input.length) {
       const char = this.input[this.position];
-      
+
       if (escaped) {
         switch (char) {
           case 'n': value += '\n'; break;
@@ -295,7 +300,7 @@ export class Lexer {
         this.advance();
       }
     }
-    
+
     this.errors.push({
       message: 'Unterminated string',
       line: this.line,
@@ -307,9 +312,9 @@ export class Lexer {
     const startColumn = this.column;
     const char = this.input[this.position];
     const nextChar = this.position + 1 < this.input.length ? this.input[this.position + 1] : '';
-    
+
     const twoChar = char + nextChar;
-    
+
     const twoCharOps: Record<string, TokenType> = {
       '==': TokenType.EQ,
       '!=': TokenType.NE,
@@ -319,14 +324,14 @@ export class Lexer {
       '||': TokenType.OR,
       '=>': TokenType.ARROW
     };
-    
+
     if (twoCharOps[twoChar]) {
       this.advance();
       this.advance();
       this.addToken(twoCharOps[twoChar], twoChar, startColumn);
       return true;
     }
-    
+
     const singleCharOps: Record<string, TokenType> = {
       '{': TokenType.LBRACE,
       '}': TokenType.RBRACE,
@@ -345,15 +350,16 @@ export class Lexer {
       '/': TokenType.SLASH,
       '!': TokenType.BANG,
       '<': TokenType.LT,
-      '>': TokenType.GT
+      '>': TokenType.GT,
+      '?': TokenType.QUESTION
     };
-    
+
     if (singleCharOps[char]) {
       this.advance();
       this.addToken(singleCharOps[char], char, startColumn);
       return true;
     }
-    
+
     return false;
   }
 

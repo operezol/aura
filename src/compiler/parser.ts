@@ -14,21 +14,32 @@ export class Parser {
   private errors: ParserError[] = [];
 
   constructor(tokens: Token[]) {
-    this.tokens = tokens.filter(t => 
-      t.type !== TokenType.NEWLINE && 
-      t.type !== TokenType.INDENT && 
+    this.tokens = tokens.filter(t =>
+      t.type !== TokenType.NEWLINE &&
+      t.type !== TokenType.INDENT &&
       t.type !== TokenType.DEDENT
     );
   }
 
   parse(): { ast: AST.Program | null; errors: ParserError[] } {
     const components: AST.ComponentNode[] = [];
+    const spaces: AST.SpaceNode[] = [];
+    const styles: AST.StyleNode[] = [];
 
     while (!this.isAtEnd()) {
       try {
-        const component = this.parseComponent();
-        if (component) {
-          components.push(component);
+        if (this.check(TokenType.COMPONENT)) {
+          const component = this.parseComponent();
+          if (component) components.push(component);
+        } else if (this.check(TokenType.SPACE)) {
+          const space = this.parseSpace();
+          if (space) spaces.push(space);
+        } else if (this.check(TokenType.STYLE)) {
+          const style = this.parseStyle();
+          if (style) styles.push(style);
+        } else {
+          this.error('Expected component, space or style declaration');
+          this.synchronize();
         }
       } catch (error) {
         this.synchronize();
@@ -38,6 +49,8 @@ export class Parser {
     const ast: AST.Program = {
       type: AST.NodeType.PROGRAM,
       components,
+      spaces,
+      styles,
       line: 1,
       column: 1
     };
@@ -60,6 +73,7 @@ export class Parser {
     const effects: AST.EffectDeclaration[] = [];
     const handlers: AST.EventHandler[] = [];
     const animations: AST.AnimationDeclaration[] = [];
+    const styles: AST.StyleNode[] = [];
     const body: AST.ElementNode[] = [];
     const accessibility: AST.AccessibilityInfo = {};
 
@@ -81,6 +95,9 @@ export class Parser {
       } else if (this.match(TokenType.ANIMATE)) {
         const animation = this.parseAnimation();
         if (animation) animations.push(animation);
+      } else if (this.check(TokenType.STYLE)) {
+        const style = this.parseStyle();
+        if (style) styles.push(style);
       } else if (this.match(TokenType.ROLE)) {
         accessibility.role = this.parseStringValue();
       } else if (this.match(TokenType.LABEL)) {
@@ -104,8 +121,104 @@ export class Parser {
       effects,
       handlers,
       animations,
+      styles,
       body,
       accessibility,
+      line: token.line,
+      column: token.column
+    };
+  }
+
+  private parseSpace(): AST.SpaceNode | null {
+    if (!this.match(TokenType.SPACE)) {
+      this.error('Expected space declaration');
+      return null;
+    }
+
+    const token = this.previous();
+    const name = this.consume(TokenType.IDENTIFIER, 'Expected space name');
+
+    const states: AST.StateDeclaration[] = [];
+    const computed: AST.ComputedDeclaration[] = [];
+    const effects: AST.EffectDeclaration[] = [];
+    const handlers: AST.EventHandler[] = [];
+
+    this.consume(TokenType.COLON, 'Expected : after space name');
+
+    while (!this.isAtEnd() && !this.check(TokenType.COMPONENT) && !this.check(TokenType.SPACE)) {
+      if (this.match(TokenType.STATE)) {
+        const state = this.parseState();
+        if (state) states.push(state);
+      } else if (this.match(TokenType.COMPUTED)) {
+        const comp = this.parseComputed();
+        if (comp) computed.push(comp);
+      } else if (this.match(TokenType.EFFECT)) {
+        const effect = this.parseEffect();
+        if (effect) effects.push(effect);
+      } else if (this.match(TokenType.ON)) {
+        const handler = this.parseEventHandler();
+        if (handler) handlers.push(handler);
+      } else {
+        this.advance();
+      }
+    }
+
+    return {
+      type: AST.NodeType.SPACE,
+      name: name.value,
+      states,
+      computed,
+      effects,
+      handlers,
+      line: token.line,
+      column: token.column
+    };
+  }
+
+  private parseStyle(): AST.StyleNode | null {
+    if (!this.match(TokenType.STYLE)) {
+      this.error('Expected style declaration');
+      return null;
+    }
+
+    const token = this.previous();
+    this.consume(TokenType.COLON, 'Expected : after style');
+
+    const rules: AST.StyleRule[] = [];
+
+    while (!this.isAtEnd() && !this.check(TokenType.COMPONENT) && !this.check(TokenType.SPACE) && !this.check(TokenType.STYLE)) {
+      // Parse selector
+      const selectorToken = this.consume(TokenType.DOT, 'Expected . for class selector');
+      const name = this.consume(TokenType.IDENTIFIER, 'Expected class name');
+      const selector = '.' + name.value;
+
+      this.consume(TokenType.COLON, 'Expected : after selector');
+
+      const properties: Record<string, string | AST.Expression> = {};
+
+      while (!this.isAtEnd() && this.check(TokenType.IDENTIFIER)) {
+        const propName = this.advance().value;
+        this.consume(TokenType.COLON, 'Expected : after property name');
+
+        // Simple value or expression
+        if (this.check(TokenType.STRING)) {
+          properties[propName] = this.advance().value;
+        } else if (this.check(TokenType.NUMBER)) {
+          properties[propName] = this.advance().value;
+        } else {
+          // We'll treat it as expression if it's not a simple literal
+          properties[propName] = this.parseExpression();
+        }
+
+        // Optional comma? Usually not in our indentation syntax but let's see lexer
+      }
+
+      rules.push({ selector, properties });
+    }
+
+    return {
+      type: AST.NodeType.STYLE,
+      rules,
       line: token.line,
       column: token.column
     };
@@ -147,7 +260,7 @@ export class Parser {
   private parseEffect(): AST.EffectDeclaration | null {
     const token = this.previous();
     this.consume(TokenType.LPAREN, 'Expected ( after effect');
-    
+
     const dependencies: string[] = [];
     if (!this.check(TokenType.RPAREN)) {
       do {
@@ -155,7 +268,7 @@ export class Parser {
         dependencies.push(dep.value);
       } while (this.match(TokenType.COMMA));
     }
-    
+
     this.consume(TokenType.RPAREN, 'Expected ) after dependencies');
     this.consume(TokenType.ARROW, 'Expected => after effect dependencies');
 
@@ -174,7 +287,7 @@ export class Parser {
     const token = this.previous();
     const event = this.consume(TokenType.IDENTIFIER, 'Expected event name');
     this.consume(TokenType.ARROW, 'Expected => after event name');
-    
+
     const handler = this.parseArrowFunction();
 
     return {
@@ -199,7 +312,7 @@ export class Parser {
       const propName = this.advance().value;
       this.consume(TokenType.COLON, 'Expected : after property name');
       const to = this.parseExpression();
-      
+
       properties.push({
         property: propName,
         to
@@ -226,8 +339,18 @@ export class Parser {
     const attributes: AST.Attribute[] = [];
     const children: (AST.ElementNode | AST.TextNode | AST.ConditionalNode | AST.LoopNode | AST.SlotNode)[] = [];
 
-    while (this.check(TokenType.IDENTIFIER) && !this.checkNext(TokenType.COLON)) {
-      const attrName = this.advance().value;
+    while (this.isAttributeName(this.peek()) && !this.checkNext(TokenType.COLON)) {
+      let attrName = this.advance().value;
+
+      while (this.match(TokenType.MINUS)) {
+        attrName += '-';
+        if (this.isAttributeName(this.peek())) {
+          attrName += this.advance().value;
+        } else {
+          this.error('Expected attribute name part after -');
+        }
+      }
+
       this.consume(TokenType.EQUALS, 'Expected = after attribute name');
       const attrValue = this.parseExpression();
       attributes.push({ name: attrName, value: attrValue });
@@ -280,7 +403,7 @@ export class Parser {
     this.consume(TokenType.COLON, 'Expected : after condition');
 
     const consequent: (AST.ElementNode | AST.TextNode)[] = [];
-    
+
     if (this.check(TokenType.IDENTIFIER)) {
       const element = this.parseElement();
       if (element) consequent.push(element);
@@ -299,13 +422,13 @@ export class Parser {
     this.consume(TokenType.IDENTIFIER, 'Expected each');
     const token = this.previous();
     const item = this.consume(TokenType.IDENTIFIER, 'Expected item name');
-    
+
     this.consume(TokenType.IDENTIFIER, 'Expected in');
     const iterable = this.parseExpression();
     this.consume(TokenType.COLON, 'Expected : after iterable');
 
     const body: (AST.ElementNode | AST.TextNode)[] = [];
-    
+
     if (this.check(TokenType.IDENTIFIER)) {
       const element = this.parseElement();
       if (element) body.push(element);
@@ -333,7 +456,31 @@ export class Parser {
   }
 
   private parseExpression(): AST.Expression {
-    return this.parseLogicalOr();
+    return this.parseTernary();
+  }
+
+
+
+  private parseTernary(): AST.Expression {
+    let expr = this.parseLogicalOr();
+
+    if (this.match(TokenType.QUESTION)) {
+      const question = this.previous();
+      const consequent = this.parseExpression();
+      this.consume(TokenType.COLON, 'Expected : in conditional expression');
+      const alternate = this.parseTernary();
+
+      expr = {
+        type: AST.NodeType.CONDITIONAL_EXPRESSION,
+        test: expr,
+        consequent,
+        alternate,
+        line: question.line,
+        column: question.column
+      };
+    }
+
+    return expr;
   }
 
   private parseLogicalOr(): AST.Expression {
@@ -598,7 +745,7 @@ export class Parser {
   private parseArrowFunction(): AST.ArrowFunction {
     const token = this.peek();
     const params: string[] = [];
-    
+
     if (this.match(TokenType.LPAREN)) {
       if (!this.check(TokenType.RPAREN)) {
         do {
@@ -627,7 +774,7 @@ export class Parser {
 
   private extractDependencies(expr: AST.Expression): string[] {
     const deps: string[] = [];
-    
+
     const walk = (node: AST.Expression) => {
       if (node.type === AST.NodeType.IDENTIFIER) {
         deps.push(node.name);
@@ -641,7 +788,7 @@ export class Parser {
         node.arguments.forEach(walk);
       }
     };
-    
+
     walk(expr);
     return [...new Set(deps)];
   }
@@ -707,6 +854,7 @@ export class Parser {
 
       switch (this.peek().type) {
         case TokenType.COMPONENT:
+        case TokenType.SPACE:
         case TokenType.STATE:
         case TokenType.COMPUTED:
         case TokenType.EFFECT:
@@ -715,5 +863,20 @@ export class Parser {
 
       this.advance();
     }
+  }
+
+  private isAttributeName(token: Token): boolean {
+    const t = token.type;
+    return t === TokenType.IDENTIFIER ||
+      t === TokenType.ROLE ||
+      t === TokenType.LABEL ||
+      t === TokenType.STYLE ||
+      t === TokenType.ON ||
+      t === TokenType.DESCRIBE ||
+      t === TokenType.SLOT ||
+      t === TokenType.WHEN ||
+      t === TokenType.EACH ||
+      t === TokenType.ANIMATE ||
+      t === TokenType.SPACE;
   }
 }

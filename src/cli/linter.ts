@@ -107,7 +107,7 @@ export class Linter {
 
   private checkUnusedState(ast: any, warnings: LintWarning[]): void {
     for (const component of ast.components) {
-      const declaredStates = new Set(component.states.map((s: any) => s.name));
+      const declaredStates = new Set<string>(component.states.map((s: any) => s.name));
       const usedStates = new Set<string>();
 
       const collectUsedStates = (node: any) => {

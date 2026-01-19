@@ -1,0 +1,115 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Aura",
+    "scopeName": "source.aura",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#constants"
+        },
+        {
+            "include": "#storage"
+        },
+        {
+            "include": "#support"
+        },
+        {
+            "include": "#entity"
+        },
+        {
+            "include": "#operator"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.number-sign.aura",
+                    "match": "#.*$"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.aura",
+                    "match": "\\b(component|state|computed|effect|on|animate|when|each|slot|emit|role|label|describe|space|style|in)\\b"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.aura",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.aura",
+                            "match": "\\\\."
+                        },
+                        {
+                            "include": "#interpolation"
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.aura",
+                    "begin": "'",
+                    "end": "'",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.aura",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "interpolation": {
+            "name": "meta.embedded.line.aura",
+            "begin": "\\{",
+            "end": "\\}",
+            "patterns": [
+                {
+                    "include": "$self"
+                }
+            ]
+        },
+        "numbers": {
+            "name": "constant.numeric.aura",
+            "match": "\\b\\d+(\\.\\d+)?\\b"
+        },
+        "constants": {
+            "name": "constant.language.aura",
+            "match": "\\b(true|false|null)\\b"
+        },
+        "storage": {
+            "match": "\\b(state|computed)\\b",
+            "name": "storage.type.aura"
+        },
+        "support": {
+            "match": "\\b(h[1-6]|div|span|p|a|ul|ol|li|img|button|input|form|nav|header|footer|section|article)\\b",
+            "name": "support.class.html.aura"
+        },
+        "entity": {
+            "match": "\\b([A-Z][a-zA-Z0-9_]*)\\b",
+            "name": "entity.name.class.aura"
+        },
+        "operator": {
+            "match": "(=>|->|\\?|:|\\.|\\+|-|\\*|/|=|!|<|>)",
+            "name": "keyword.operator.aura"
+        }
+    }
+}
